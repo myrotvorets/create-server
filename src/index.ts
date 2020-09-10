@@ -1,4 +1,4 @@
-import http from 'http';
+import http, { RequestListener } from 'http';
 import https from 'https';
 import fs from 'fs';
 import { promisify } from 'util';
@@ -38,7 +38,7 @@ function makeEnv() {
     );
 }
 
-export async function createServer(): Promise<http.Server | https.Server> {
+export async function createServer(requestListener?: RequestListener): Promise<http.Server | https.Server> {
     const env = makeEnv();
     const isHttps = env.HTTPS;
 
@@ -70,8 +70,8 @@ export async function createServer(): Promise<http.Server | https.Server> {
         options.minVersion = env.TLS_MIN_VERSION || undefined;
         options.maxVersion = env.TLS_MAX_VERSION || undefined;
 
-        return https.createServer(options);
+        return https.createServer(options, requestListener);
     }
 
-    return http.createServer();
+    return http.createServer(requestListener);
 }
