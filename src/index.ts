@@ -2,10 +2,11 @@ import http, { RequestListener } from 'http';
 import https from 'https';
 import fs from 'fs';
 import { promisify } from 'util';
-import { cleanEnv, bool, str } from 'envalid';
+import { bool, cleanEnv, str } from 'envalid';
 
 const readFile = promisify(fs.readFile);
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function makeEnv() {
     return cleanEnv(
         process.env,
