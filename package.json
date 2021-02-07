@@ -33,7 +33,7 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "envalid": "^6.0.2"
+    "envalid": "^6.0.0 || ^7.0.0"
   },
   "repository": {
     "type": "git",

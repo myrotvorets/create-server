@@ -3,40 +3,34 @@ import https from 'https';
 import fs from 'fs';
 import { promisify } from 'util';
 import { bool, cleanEnv, str } from 'envalid';
+import { SecureVersion } from 'tls';
 
 const readFile = promisify(fs.readFile);
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 function makeEnv() {
-    return cleanEnv(
-        process.env,
-        {
-            HTTPS: bool({ default: false }),
-            TLS_CERT: str({ default: '' }),
-            TLS_KEY: str({ default: '' }),
-            TLS_KEY_PASSPHRASE: str({ default: '' }),
-            DHPARAM_FILE: str({ default: '' }),
-            TLS_CA: str({ default: '' }),
-            TLS_CRL: str({ default: '' }),
-            TLS_CIPHERS: str({
-                default: 'TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256',
-            }),
-            TLS_ECDH_CURVE: str({ default: 'secp384r1:prime256v1' }),
-            TLS_REQUEST_CLIENT_CERT: bool({ default: false }),
-            TLS_MIN_VERSION: str({
-                default: 'TLSv1.3',
-                choices: ['', 'TLSv1.2', 'TLSv1.3'],
-            }),
-            TLS_MAX_VERSION: str({
-                default: '',
-                choices: ['', 'TLSv1.2', 'TLSv1.3'],
-            }),
-        },
-        {
-            strict: true,
-            dotEnvPath: null,
-        },
-    );
+    return cleanEnv(process.env, {
+        HTTPS: bool({ default: false }),
+        TLS_CERT: str({ default: '' }),
+        TLS_KEY: str({ default: '' }),
+        TLS_KEY_PASSPHRASE: str({ default: '' }),
+        DHPARAM_FILE: str({ default: '' }),
+        TLS_CA: str({ default: '' }),
+        TLS_CRL: str({ default: '' }),
+        TLS_CIPHERS: str({
+            default: 'TLS_AES_256_GCM_SHA384:TLS_CHACHA20_POLY1305_SHA256:TLS_AES_128_GCM_SHA256',
+        }),
+        TLS_ECDH_CURVE: str({ default: 'secp384r1:prime256v1' }),
+        TLS_REQUEST_CLIENT_CERT: bool({ default: false }),
+        TLS_MIN_VERSION: str({
+            default: 'TLSv1.3',
+            choices: ['', 'TLSv1.2', 'TLSv1.3'],
+        }),
+        TLS_MAX_VERSION: str({
+            default: '',
+            choices: ['', 'TLSv1.2', 'TLSv1.3'],
+        }),
+    });
 }
 
 export async function createServer(requestListener?: RequestListener): Promise<http.Server | https.Server> {
@@ -68,8 +62,8 @@ export async function createServer(requestListener?: RequestListener): Promise<h
         options.requestCert = env.TLS_REQUEST_CLIENT_CERT;
         options.rejectUnauthorized = env.TLS_REQUEST_CLIENT_CERT;
 
-        options.minVersion = env.TLS_MIN_VERSION || undefined;
-        options.maxVersion = env.TLS_MAX_VERSION || undefined;
+        options.minVersion = (env.TLS_MIN_VERSION as SecureVersion) || undefined;
+        options.maxVersion = (env.TLS_MAX_VERSION as SecureVersion) || undefined;
 
         return https.createServer(options, requestListener);
     }
