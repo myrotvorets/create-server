@@ -43,11 +43,6 @@ jobs:
       - name: Run postinstall scripts
         run: npm rebuild && npm run prepare --if-present
 
-      - name: Run tests
-        run: npm test
-        env:
-          COLLECT_COVERAGE: "0"
-
   release:
     name: Prepare the release
     runs-on: ubuntu-latest

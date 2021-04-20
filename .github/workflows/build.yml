@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build
 
 on:
   push:
@@ -46,8 +46,3 @@ jobs:
 
       - name: Run postinstall scripts
         run: npm rebuild && npm run prepare --if-present
-
-      - name: Run tests
-        run: npm test
-        env:
-          COLLECT_COVERAGE: "0"
