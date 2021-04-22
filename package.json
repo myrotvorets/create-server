@@ -7,7 +7,7 @@
     "build": "tsc",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "prepublishOnly": "npm run build"
+    "prepack": "npm run build"
   },
   "files": [
     "dist/**/*.d.ts",
