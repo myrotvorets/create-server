@@ -20,7 +20,7 @@
   "license": "MIT",
   "devDependencies": {
     "@myrotvorets/eslint-config-myrotvorets-ts": "^2.2.5",
-    "@types/node": "^15.0.1",
+    "@types/node": "^15.0.2",
     "envalid": "^7.0.0",
     "eslint": "^7.19.0",
     "prettier": "^2.2.1",
