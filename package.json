@@ -19,7 +19,7 @@
   "author": "Myrotvorets <support@myrotvorets.center> (https://myrotvorets.center/)",
   "license": "MIT",
   "devDependencies": {
-    "@myrotvorets/eslint-config-myrotvorets-ts": "^2.2.5",
+    "@myrotvorets/eslint-config-myrotvorets-ts": "^2.5.3",
     "@types/node": "^15.12.2",
     "envalid": "^7.0.0",
     "eslint": "^7.19.0",
