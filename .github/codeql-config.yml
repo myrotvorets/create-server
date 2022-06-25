@@ -1,7 +1,7 @@
 name: CodeQL Config
 
 paths:
-  - lib
+  - src
 
 paths-ignore:
   - node_modules
