@@ -3,7 +3,6 @@ name: Package Audit
 on:
   push:
     branches:
-      - '**'
     paths:
       - package.json
       - package-lock.json
@@ -21,13 +20,3 @@ jobs:
     steps:
       - name: Audit with NPM
         uses: myrotvorets/composite-actions/node-package-audit@master
-
-  audit-retire:
-    name: RetireJS Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Audit with Retire.js
-        uses: myrotvorets/composite-actions/node-package-audit-retirejs@master
-        with:
-          registry-url: https://npm.pkg.github.com
