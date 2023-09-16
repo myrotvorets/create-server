@@ -18,7 +18,7 @@ jobs:
   prepare:
     name: Prepare source code
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' || github.event.inputs.npm == 'yes' || github.event.inputs.gpr == 'yes'
+    if: github.event_name == 'release' || github.event.inputs.gpr == 'yes'
     steps:
       - name: Prepare source
         uses: myrotvorets/composite-actions/node-prepublish@master
