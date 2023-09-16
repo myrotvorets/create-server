@@ -1,7 +1,8 @@
 {
     "compilerOptions": {
-        "target": "es2019",
-        "module": "CommonJS",
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
         "outDir": "./dist",
         "sourceMap": true,
         "rootDir": "./src",
@@ -11,10 +12,7 @@
         "noUnusedParameters": false,
         "noFallthroughCasesInSwitch": true,
         "esModuleInterop": true,
-        "resolveJsonModule": false,
-        "typeRoots": [
-            "./node_modules/@types/"
-        ]
+        "resolveJsonModule": false
     },
     "compileOnSave": true
 }

@@ -1,14 +1,25 @@
-import http, { RequestListener } from 'http';
-import https from 'https';
-import fs from 'fs';
-import { promisify } from 'util';
+import { readFile } from 'node:fs/promises';
+import { type Server as HttpServer, type RequestListener, createServer as createHttpServer } from 'node:http';
+import { type Server as HttpsServer, type ServerOptions, createServer as createHttpsServer } from 'node:https';
+import { type SecureVersion } from 'node:tls';
 import { bool, cleanEnv, str } from 'envalid';
-import { SecureVersion } from 'tls';
 
-const readFile = promisify(fs.readFile);
+export interface ServerEnvironment {
+    HTTPS: boolean;
+    TLS_CERT: string;
+    TLS_KEY: string;
+    TLS_KEY_PASSPHRASE: string;
+    DHPARAM_FILE: string;
+    TLS_CA: string;
+    TLS_CRL: string;
+    TLS_CIPHERS: string;
+    TLS_ECDH_CURVE: string;
+    TLS_REQUEST_CLIENT_CERT: boolean;
+    TLS_MIN_VERSION: SecureVersion;
+    TLS_MAX_VERSION: SecureVersion;
+}
 
-// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-function makeEnv() {
+function makeEnv(): ServerEnvironment {
     return cleanEnv(process.env, {
         HTTPS: bool({ default: false }),
         TLS_CERT: str({ default: '' }),
@@ -24,21 +35,21 @@ function makeEnv() {
         TLS_REQUEST_CLIENT_CERT: bool({ default: false }),
         TLS_MIN_VERSION: str({
             default: 'TLSv1.3',
-            choices: ['', 'TLSv1.2', 'TLSv1.3'],
+            choices: ['TLSv1.2', 'TLSv1.3'],
         }),
         TLS_MAX_VERSION: str({
             default: '',
-            choices: ['', 'TLSv1.2', 'TLSv1.3'],
+            choices: ['TLSv1.2', 'TLSv1.3'],
         }),
     });
 }
 
-export async function createServer(requestListener?: RequestListener): Promise<http.Server | https.Server> {
+export async function createServer(requestListener?: RequestListener): Promise<HttpServer | HttpsServer> {
     const env = makeEnv();
     const isHttps = env.HTTPS;
 
     if (isHttps) {
-        const options: https.ServerOptions = {
+        const options: ServerOptions = {
             honorCipherOrder: true,
         };
 
@@ -57,16 +68,22 @@ export async function createServer(requestListener?: RequestListener): Promise<h
             options.crl = await readFile(env.TLS_CRL);
         }
 
-        options.ciphers = env.TLS_CIPHERS || undefined;
-        options.ecdhCurve = env.TLS_ECDH_CURVE || undefined;
+        if (env.TLS_CIPHERS) {
+            options.ciphers = env.TLS_CIPHERS;
+        }
+
+        if (env.TLS_ECDH_CURVE) {
+            options.ecdhCurve = env.TLS_ECDH_CURVE;
+        }
+
         options.requestCert = env.TLS_REQUEST_CLIENT_CERT;
         options.rejectUnauthorized = env.TLS_REQUEST_CLIENT_CERT;
 
-        options.minVersion = (env.TLS_MIN_VERSION as SecureVersion) || undefined;
-        options.maxVersion = (env.TLS_MAX_VERSION as SecureVersion) || undefined;
+        options.minVersion = env.TLS_MIN_VERSION;
+        options.maxVersion = env.TLS_MAX_VERSION;
 
-        return https.createServer(options, requestListener);
+        return createHttpsServer(options, requestListener);
     }
 
-    return http.createServer(requestListener);
+    return createHttpServer(requestListener);
 }
