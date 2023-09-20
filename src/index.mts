@@ -38,7 +38,7 @@ function makeEnv(): ServerEnvironment {
             choices: ['TLSv1.2', 'TLSv1.3'],
         }),
         TLS_MAX_VERSION: str({
-            default: '',
+            default: 'TLSv1.3',
             choices: ['TLSv1.2', 'TLSv1.3'],
         }),
     });
