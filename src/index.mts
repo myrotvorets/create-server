@@ -1,7 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { type Server as HttpServer, type RequestListener, createServer as createHttpServer } from 'node:http';
 import { type Server as HttpsServer, type ServerOptions, createServer as createHttpsServer } from 'node:https';
-import { type SecureVersion } from 'node:tls';
+import type { SecureVersion } from 'node:tls';
+import process from 'node:process';
 import { bool, cleanEnv, str } from 'envalid';
 
 export interface ServerEnvironment {
@@ -47,6 +48,7 @@ function makeEnv(): ServerEnvironment {
 export async function createServer(requestListener?: RequestListener): Promise<HttpServer | HttpsServer> {
     const env = makeEnv();
     const isHttps = env.HTTPS;
+    let server: HttpServer | HttpsServer;
 
     if (isHttps) {
         const options: ServerOptions = {
@@ -82,8 +84,16 @@ export async function createServer(requestListener?: RequestListener): Promise<H
         options.minVersion = env.TLS_MIN_VERSION;
         options.maxVersion = env.TLS_MAX_VERSION;
 
-        return createHttpsServer(options, requestListener);
+        server = createHttpsServer(options, requestListener);
+    } else {
+        server = createHttpServer(requestListener);
     }
 
-    return createHttpServer(requestListener);
+    const finish = (): unknown => server.close(() => process.exit(0));
+    process.on('SIGTERM', finish);
+    process.on('SIGINT', finish);
+    process.on('SIGQUIT', finish);
+    process.on('SIGUSR2', finish);
+
+    return server;
 }
