@@ -11,6 +11,11 @@
         "noUnusedLocals": true,
         "noUnusedParameters": false,
         "noFallthroughCasesInSwitch": true,
+        "noPropertyAccessFromIndexSignature": true,
+        "noUncheckedIndexedAccess": true,
+        "noImplicitOverride": true,
+        "noImplicitReturns": true,
+        "exactOptionalPropertyTypes": true,
         "esModuleInterop": true,
         "resolveJsonModule": false
     },
