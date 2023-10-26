@@ -1,9 +1,10 @@
+import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { type Server as HttpServer, type RequestListener, createServer as createHttpServer } from 'node:http';
 import { type Server as HttpsServer, type ServerOptions, createServer as createHttpsServer } from 'node:https';
-import type { SecureVersion } from 'node:tls';
 import process from 'node:process';
-import { bool, cleanEnv, str } from 'envalid';
+import type { SecureVersion } from 'node:tls';
+import { bool, cleanEnv, port, str } from 'envalid';
 
 export interface ServerEnvironment {
     HTTPS: boolean;
@@ -18,6 +19,7 @@ export interface ServerEnvironment {
     TLS_REQUEST_CLIENT_CERT: boolean;
     TLS_MIN_VERSION: SecureVersion;
     TLS_MAX_VERSION: SecureVersion;
+    PORT: number;
 }
 
 function makeEnv(): ServerEnvironment {
@@ -42,10 +44,14 @@ function makeEnv(): ServerEnvironment {
             default: 'TLSv1.3',
             choices: ['TLSv1.2', 'TLSv1.3'],
         }),
+        PORT: port({ default: 3000 }),
     });
 }
 
-export async function createServer(requestListener?: RequestListener): Promise<HttpServer | HttpsServer> {
+export async function createServer(
+    requestListener: RequestListener | undefined,
+    listen = true,
+): Promise<HttpServer | HttpsServer> {
     const env = makeEnv();
     const isHttps = env.HTTPS;
     let server: HttpServer | HttpsServer;
@@ -89,11 +95,25 @@ export async function createServer(requestListener?: RequestListener): Promise<H
         server = createHttpServer(requestListener);
     }
 
-    const finish = (): unknown => server.close(() => process.exit(0));
-    process.on('SIGTERM', finish);
-    process.on('SIGINT', finish);
+    const gracefulShutdown = (): void => {
+        if (server.listening) {
+            server.close();
+        } else {
+            server.closeAllConnections();
+        }
+    };
+
+    const finish = (): unknown => server.closeAllConnections();
+
+    process.on('SIGTERM', gracefulShutdown);
+    process.on('SIGINT', gracefulShutdown);
     process.on('SIGQUIT', finish);
     process.on('SIGUSR2', finish);
+
+    if (listen) {
+        server.listen(env.PORT);
+        await once(server, 'listening');
+    }
 
     return server;
 }
