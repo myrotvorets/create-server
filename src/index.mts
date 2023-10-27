@@ -3,8 +3,9 @@ import { readFile } from 'node:fs/promises';
 import { type Server as HttpServer, type RequestListener, createServer as createHttpServer } from 'node:http';
 import { type Server as HttpsServer, type ServerOptions, createServer as createHttpsServer } from 'node:https';
 import process from 'node:process';
-import type { SecureVersion } from 'node:tls';
+import { type SecureContextOptions, type SecureVersion } from 'node:tls';
 import { bool, cleanEnv, port, str } from 'envalid';
+import { FSWatcher, watch } from 'node:fs';
 
 export interface ServerEnvironment {
     HTTPS: boolean;
@@ -20,6 +21,15 @@ export interface ServerEnvironment {
     TLS_MIN_VERSION: SecureVersion;
     TLS_MAX_VERSION: SecureVersion;
     PORT: number;
+}
+
+export interface CreateServerOptions {
+    listen: boolean;
+    setSignalHandlers: boolean;
+    watchCert: boolean;
+    reloadDelay: number;
+    reloadAttempts: number;
+    errorHandler: undefined | ((error: Error, where: 'renew' | 'watch') => void);
 }
 
 function makeEnv(): ServerEnvironment {
@@ -48,53 +58,88 @@ function makeEnv(): ServerEnvironment {
     });
 }
 
-export async function createServer(
-    requestListener: RequestListener | undefined,
-    listen = true,
-): Promise<HttpServer | HttpsServer> {
-    const env = makeEnv();
-    const isHttps = env.HTTPS;
-    let server: HttpServer | HttpsServer;
+async function makeSecureContext(env: ServerEnvironment): Promise<SecureContextOptions> {
+    const options: SecureContextOptions = {
+        honorCipherOrder: true,
+        passphrase: env.TLS_KEY_PASSPHRASE || undefined,
+        ciphers: env.TLS_CIPHERS || undefined,
+        ecdhCurve: env.TLS_ECDH_CURVE || undefined,
+        minVersion: env.TLS_MIN_VERSION,
+        maxVersion: env.TLS_MAX_VERSION,
+    };
 
-    if (isHttps) {
-        const options: ServerOptions = {
-            honorCipherOrder: true,
+    const undef = Promise.resolve(undefined);
+    const promises: Promise<Buffer | undefined>[] = [];
+
+    promises.push(
+        readFile(env.TLS_CERT),
+        readFile(env.TLS_KEY),
+        env.TLS_CA ? readFile(env.TLS_CA) : undef,
+        env.TLS_CRL ? readFile(env.TLS_CRL) : undef,
+        env.DHPARAM_FILE ? readFile(env.DHPARAM_FILE) : undef,
+    );
+
+    [options.cert, options.key, options.ca, options.crl, options.dhparam] = await Promise.all(promises);
+
+    return options;
+}
+
+async function createSecureServer(
+    env: ServerEnvironment,
+    requestListener: RequestListener | undefined,
+    opts: CreateServerOptions,
+): Promise<HttpsServer> {
+    const serverOption: ServerOptions = {
+        ...(await makeSecureContext(env)),
+        requestCert: env.TLS_REQUEST_CLIENT_CERT,
+        rejectUnauthorized: env.TLS_REQUEST_CLIENT_CERT,
+    };
+
+    const server = createHttpsServer(serverOption, requestListener);
+
+    if (opts.watchCert) {
+        let timeout: NodeJS.Timeout | undefined;
+        const watchHandler = (): void => {
+            clearTimeout(timeout);
+            let attempts = opts.reloadAttempts;
+            const reloader = (): unknown =>
+                makeSecureContext(env)
+                    .then((options) => server.setSecureContext(options))
+                    .catch((error: Error) => {
+                        opts.errorHandler?.(error, 'renew');
+                        if (attempts > 0) {
+                            --attempts;
+                            setTimeout(reloader, opts.reloadDelay);
+                        }
+                    });
+
+            timeout = setTimeout(reloader, opts.reloadDelay);
         };
 
-        [options.cert, options.key] = await Promise.all([readFile(env.TLS_CERT), readFile(env.TLS_KEY)]);
-
-        options.passphrase = env.TLS_KEY_PASSPHRASE || undefined;
-        if (env.DHPARAM_FILE) {
-            options.dhparam = await readFile(env.DHPARAM_FILE);
-        }
+        const watchers: FSWatcher[] = [
+            watch(env.TLS_CERT, { persistent: false }, watchHandler),
+            watch(env.TLS_KEY, { persistent: false }, watchHandler),
+        ];
 
         if (env.TLS_CA) {
-            options.ca = await readFile(env.TLS_CA);
+            watchers.push(watch(env.TLS_CA, { persistent: false }, watchHandler));
         }
 
-        if (env.TLS_CRL) {
-            options.crl = await readFile(env.TLS_CRL);
+        if (env.TLS_CERT) {
+            watchers.push(watch(env.TLS_CRL, { persistent: false }, watchHandler));
         }
 
-        if (env.TLS_CIPHERS) {
-            options.ciphers = env.TLS_CIPHERS;
+        if (opts.errorHandler) {
+            watchers.forEach((watcher) => {
+                watcher.on('error', (err) => opts.errorHandler!(err, 'watch'));
+            });
         }
-
-        if (env.TLS_ECDH_CURVE) {
-            options.ecdhCurve = env.TLS_ECDH_CURVE;
-        }
-
-        options.requestCert = env.TLS_REQUEST_CLIENT_CERT;
-        options.rejectUnauthorized = env.TLS_REQUEST_CLIENT_CERT;
-
-        options.minVersion = env.TLS_MIN_VERSION;
-        options.maxVersion = env.TLS_MAX_VERSION;
-
-        server = createHttpsServer(options, requestListener);
-    } else {
-        server = createHttpServer(requestListener);
     }
 
+    return server;
+}
+
+function setSignalHandlers(server: HttpServer): void {
     const gracefulShutdown = (): void => {
         if (server.listening) {
             server.close();
@@ -103,14 +148,43 @@ export async function createServer(
         }
     };
 
-    const finish = (): unknown => server.closeAllConnections();
+    const finish = (): void => {
+        server.closeAllConnections();
+    };
 
     process.on('SIGTERM', gracefulShutdown);
     process.on('SIGINT', gracefulShutdown);
     process.on('SIGQUIT', finish);
     process.on('SIGUSR2', finish);
+}
 
-    if (listen) {
+export async function createServer(
+    requestListener: RequestListener | undefined,
+    options?: Partial<CreateServerOptions> | boolean,
+): Promise<HttpServer | HttpsServer> {
+    const defaults: CreateServerOptions = {
+        listen: true,
+        setSignalHandlers: true,
+        watchCert: true,
+        reloadDelay: 1000,
+        reloadAttempts: 5,
+        errorHandler: undefined,
+    };
+
+    if (typeof options === 'boolean') {
+        options = { listen: options };
+    }
+
+    const opts = { ...defaults, ...options };
+
+    const env = makeEnv();
+    const server = env.HTTPS ? await createSecureServer(env, requestListener, opts) : createHttpServer(requestListener);
+
+    if (opts.setSignalHandlers) {
+        setSignalHandlers(server);
+    }
+
+    if (opts.listen) {
         server.listen(env.PORT);
         await once(server, 'listening');
     }
