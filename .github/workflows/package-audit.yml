@@ -26,6 +26,7 @@ jobs:
             api.github.com:443
             github.com:443
             npm.pkg.github.com:443
+            objects.githubusercontent.com:443
             pkg-npm.githubusercontent.com:443
             registry.npmjs.org:443
 
@@ -47,6 +48,7 @@ jobs:
             api.github.com:443
             github.com:443
             npm.pkg.github.com:443
+            objects.githubusercontent.com:443
             pkg-npm.githubusercontent.com:443
             registry.npmjs.org:443
             tuf-repo-cdn.sigstore.dev:443
