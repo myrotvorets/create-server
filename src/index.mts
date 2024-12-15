@@ -105,8 +105,9 @@ async function createSecureServer(
             const reloader = (): unknown =>
                 makeSecureContext(env)
                     .then((options) => server.setSecureContext(options))
-                    .catch((error: Error) => {
-                        opts.errorHandler?.(error, 'renew');
+                    .catch((error: unknown) => {
+                        const err = error instanceof Error ? error : new Error(String(error));
+                        opts.errorHandler?.(err, 'renew');
                         if (attempts > 0) {
                             --attempts;
                             setTimeout(reloader, opts.reloadDelay);
