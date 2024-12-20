@@ -7,6 +7,8 @@ import { type SecureContextOptions, type SecureVersion } from 'node:tls';
 import { bool, cleanEnv, port, str } from 'envalid';
 import { FSWatcher, watch } from 'node:fs';
 
+type AsyncRequestListener = (...args: Parameters<RequestListener>) => Promise<void>;
+
 export interface ServerEnvironment {
     HTTPS: boolean;
     TLS_CERT: string;
@@ -86,7 +88,7 @@ async function makeSecureContext(env: ServerEnvironment): Promise<SecureContextO
 
 async function createSecureServer(
     env: ServerEnvironment,
-    requestListener: RequestListener | undefined,
+    requestListener: RequestListener | AsyncRequestListener | undefined,
     opts: CreateServerOptions,
 ): Promise<HttpsServer> {
     const serverOption: ServerOptions = {
@@ -95,7 +97,7 @@ async function createSecureServer(
         rejectUnauthorized: env.TLS_REQUEST_CLIENT_CERT,
     };
 
-    const server = createHttpsServer(serverOption, requestListener);
+    const server = createHttpsServer(serverOption, requestListener as RequestListener | undefined);
 
     if (opts.watchCert) {
         let timeout: NodeJS.Timeout | undefined;
@@ -160,7 +162,7 @@ function setSignalHandlers(server: HttpServer): void {
 }
 
 export async function createServer(
-    requestListener: RequestListener | undefined,
+    requestListener: RequestListener | AsyncRequestListener | undefined,
     options?: Partial<CreateServerOptions> | boolean,
 ): Promise<HttpServer | HttpsServer> {
     const defaults: CreateServerOptions = {
@@ -179,7 +181,9 @@ export async function createServer(
     const opts = { ...defaults, ...options };
 
     const env = makeEnv();
-    const server = env.HTTPS ? await createSecureServer(env, requestListener, opts) : createHttpServer(requestListener);
+    const server = env.HTTPS
+        ? await createSecureServer(env, requestListener, opts)
+        : createHttpServer(requestListener as RequestListener | undefined);
 
     if (opts.setSignalHandlers) {
         setSignalHandlers(server);
