@@ -24,7 +24,7 @@
     "@myrotvorets/eslint-config-myrotvorets-ts": "^3.0.0",
     "@types/node": ">= 20.11.16",
     "envalid": "^8.0.0",
-    "typescript": "^5.3.3"
+    "typescript": "^6.0.0"
   },
   "peerDependencies": {
     "envalid": "^6.0.0 || ^7.0.0 || ^8.0.0"
