@@ -23,11 +23,11 @@
   "devDependencies": {
     "@myrotvorets/eslint-config-myrotvorets-ts": "^4.0.0",
     "@types/node": ">= 20.11.16",
-    "envalid": "^8.0.0",
+    "envalid": "^9.0.0",
     "typescript": "^6.0.0"
   },
   "peerDependencies": {
-    "envalid": "^6.0.0 || ^7.0.0 || ^8.0.0"
+    "envalid": "^9.0.0"
   },
   "repository": {
     "type": "git",
